@@ -164,6 +164,26 @@ This project is open-source and available under the **[MIT License](LICENSE)**.
 
 ---
 
+## ⚡ Creator & Lead Architect
+
+<div align="center">
+
+Conceived, Engineered & Fortified by
+
+### [Gagan H S](https://github.com/FogProtocol)
+
+*Pioneering Code Comprehension • Tactical Open Source Engineering • Architectural Archaeology*
+
+```text
+"In an era of blind AI completions and unverified dependencies, never commit a single line 
+of code before understanding its actual flow. Master the architecture, trace the execution, 
+and reclaim your mental model of the codebase."
+```
+
+</div>
+
+---
+
 <div align="center">
   <sub>Maintained by <strong><a href="https://github.com/FogProtocol">FogProtocol</a></strong></sub>
 </div>
