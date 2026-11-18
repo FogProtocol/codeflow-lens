@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/crossfiletrace.tsx","./src/components/dualstreamview.tsx","./src/components/filepane.tsx","./src/components/header.tsx","./src/components/settingsmodal.tsx","./src/services/gemini.ts","./src/services/samples.ts","./src/types/index.ts"],"version":"5.9.3"}

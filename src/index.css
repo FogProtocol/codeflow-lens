@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+}
+
+/* Crisp Clean Light Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Code line font and line height */
+.code-line {
+  line-height: 1.625rem;
+  font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+}
+
+/* Light theme highlight pulse */
+@keyframes light-pulse-glow {
+  0%, 100% {
+    background-color: #eff6ff;
+    box-shadow: inset 4px 0 0 0 #3b82f6;
+  }
+  50% {
+    background-color: #dbeafe;
+    box-shadow: inset 4px 0 0 0 #2563eb;
+  }
+}
+
+.active-code-block {
+  animation: light-pulse-glow 2s infinite ease-in-out;
+}
+
+/* Smooth transitions */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
