@@ -11,10 +11,13 @@ import {
   Zap,
   ShieldCheck,
   Cpu,
-  Layers
+  Layers,
+  Play,
+  Terminal,
+  RotateCcw
 } from 'lucide-react';
 import { LineByLineExplanation, WhyBuiltRationale, AudienceLevel, BlockQuery } from '../types';
-import { askBlockQueryWithGemini } from '../services/gemini';
+import { askBlockQueryWithGemini, simulateCodeRun } from '../services/gemini';
 
 interface DualStreamViewProps {
   fileName: string;
@@ -47,6 +50,34 @@ export const DualStreamView: React.FC<DualStreamViewProps> = ({
   // In-card query input state
   const [questionInput, setQuestionInput] = useState('');
   const [isAsking, setIsAsking] = useState(false);
+
+  // Interactive Execution state
+  const [isRunningConsoleOpen, setIsRunningConsoleOpen] = useState(false);
+  const [testInput, setTestInput] = useState(() => {
+    if (content.includes('len(num) == 6') || content.includes('startswith("25")')) {
+      return '215622';
+    }
+    if (content.includes('add(a, b)')) {
+      return '5 10';
+    }
+    return '';
+  });
+  const [consoleLogs, setConsoleLogs] = useState<Array<{ type: 'input' | 'output' | 'step'; text: string; status?: 'success' | 'rejected' | 'error' }>>([]);
+
+  const handleExecuteTest = (customVal?: string) => {
+    const val = customVal !== undefined ? customVal : testInput;
+    setIsRunningConsoleOpen(true);
+    const result = simulateCodeRun(content, val, language);
+    
+    const newEntries = [
+      { type: 'input' as const, text: `$ python ${fileName}` },
+      { type: 'input' as const, text: `> Input provided: "${val}"` },
+      ...result.steps.map(s => ({ type: 'step' as const, text: s })),
+      ...result.stdout.map(o => ({ type: 'output' as const, text: `> ${o}`, status: result.status })),
+    ];
+
+    setConsoleLogs(prev => [...prev, ...newEntries]);
+  };
 
   // Deep Dive & Mental Model expansion state
   const [expandedDeepDives, setExpandedDeepDives] = useState<Record<string, boolean>>({});
@@ -259,20 +290,33 @@ export const DualStreamView: React.FC<DualStreamViewProps> = ({
           /* Generous bottom padding so any line (including line 63 or the last line) is centered right in the middle */
           <div className="pb-[50vh] space-y-2">
             
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1 flex items-center justify-between pb-1">
-              <div className="flex items-center gap-2">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1 flex flex-wrap items-center justify-between gap-2 pb-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span>Line-by-Line Flow & Meaning</span>
                 {deepDiveCount > 0 && (
                   <button
                     type="button"
                     onClick={handleToggleExpandAll}
-                    className="text-[10px] lowercase tracking-normal font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                    className="text-[10px] lowercase tracking-normal font-semibold px-2 py-0.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
                     title="Toggle mental models and deep dive notes for all lines"
                   >
                     <Sparkles className="w-3 h-3 text-indigo-600" />
-                    <span>{expandAll ? 'Collapse All Deep Dives' : `Expand All Deep Dives (${deepDiveCount})`}</span>
+                    <span>{expandAll ? 'Collapse Dives' : `Deep Dives (${deepDiveCount})`}</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setIsRunningConsoleOpen(!isRunningConsoleOpen)}
+                  className={`text-[10px] lowercase tracking-normal font-semibold px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shadow-2xs ${
+                    isRunningConsoleOpen 
+                      ? 'bg-emerald-600 text-white' 
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  }`}
+                  title="Open interactive terminal to test code execution and inputs"
+                >
+                  <Play className="w-3 h-3 text-emerald-600" />
+                  <span>{isRunningConsoleOpen ? 'Close Runner' : '⚡ Run & Test Code'}</span>
+                </button>
               </div>
               {audienceLevel && (
                 <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 font-semibold">
@@ -280,6 +324,181 @@ export const DualStreamView: React.FC<DualStreamViewProps> = ({
                 </span>
               )}
             </div>
+
+            {/* INTERACTIVE CODE EXECUTION & TEST CONSOLE */}
+            {isRunningConsoleOpen && (
+              <div className="my-2.5 p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-3 shadow-md">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-white font-mono">Terminal Console ($ python {fileName})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {consoleLogs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setConsoleLogs([])}
+                        className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Clear</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsRunningConsoleOpen(false)}
+                      className="text-xs text-slate-400 hover:text-white font-bold p-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Test Presets */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono text-slate-400">Quick Test Input Presets:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {content.includes('startswith("25")') || content.includes('len(num) == 6') ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestInput('215622');
+                            handleExecuteTest('215622');
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-red-950/80 text-red-300 hover:bg-red-900 border border-red-800/80 font-mono transition-colors"
+                        >
+                          Test 215622 (Reject check)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestInput('251234');
+                            handleExecuteTest('251234');
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900 border border-emerald-800/80 font-mono transition-colors"
+                        >
+                          Test 251234 (Accept check)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestInput('269999');
+                            handleExecuteTest('269999');
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900 border border-emerald-800/80 font-mono transition-colors"
+                        >
+                          Test 269999 (Accept check)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestInput('123');
+                            handleExecuteTest('123');
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 hover:bg-amber-900 border border-amber-800/80 font-mono transition-colors"
+                        >
+                          Test 123 (Length error)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestInput('exit');
+                            handleExecuteTest('exit');
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 font-mono transition-colors"
+                        >
+                          Test 'exit' (Break loop)
+                        </button>
+                      </>
+                    ) : content.includes('add(a, b)') ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestInput('5 10');
+                            handleExecuteTest('5 10');
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-blue-950 text-blue-300 hover:bg-blue-900 border border-blue-800 font-mono transition-colors"
+                        >
+                          Test a=5, b=10
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestInput('100 250');
+                            handleExecuteTest('100 250');
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded bg-blue-950 text-blue-300 hover:bg-blue-900 border border-blue-800 font-mono transition-colors"
+                        >
+                          Test a=100, b=250
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleExecuteTest(testInput || 'sample')}
+                        className="text-[10px] px-2 py-0.5 rounded bg-blue-950 text-blue-300 hover:bg-blue-900 border border-blue-800 font-mono transition-colors"
+                      >
+                        Run Execution Test
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Custom Input Box */}
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="flex-1 flex items-center bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 font-mono text-xs text-slate-200">
+                    <span className="text-emerald-400 mr-2">$</span>
+                    <input
+                      type="text"
+                      value={testInput}
+                      onChange={(e) => setTestInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleExecuteTest();
+                        }
+                      }}
+                      placeholder="Type test input (e.g. 215622)..."
+                      className="bg-transparent w-full focus:outline-none text-white text-xs placeholder-slate-600 font-mono"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleExecuteTest()}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Run</span>
+                  </button>
+                </div>
+
+                {/* Output Window */}
+                <div className="bg-slate-950 rounded-xl p-3 font-mono text-xs max-h-56 overflow-y-auto space-y-1 border border-slate-800/80">
+                  {consoleLogs.length === 0 ? (
+                    <span className="text-slate-600 italic">Terminal ready. Type an input above or click any preset to see the live output.</span>
+                  ) : (
+                    consoleLogs.map((log, idx) => (
+                      <div
+                        key={idx}
+                        className={`${
+                          log.type === 'input'
+                            ? 'text-slate-400 font-semibold'
+                            : log.type === 'step'
+                            ? 'text-indigo-400 text-[11px] pl-2'
+                            : log.status === 'rejected'
+                            ? 'text-red-400 font-bold text-xs pl-2 bg-red-950/40 p-1.5 rounded border border-red-900/50'
+                            : 'text-emerald-400 font-bold text-xs pl-2 bg-emerald-950/40 p-1.5 rounded border border-emerald-900/50'
+                        }`}
+                      >
+                        {log.text}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 1. LINE-BY-LINE LIST (CENTERED VERTICALLY IN FRAME ON HOVER) */}
             {lineExplanations.map((exp) => {

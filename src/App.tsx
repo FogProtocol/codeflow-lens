@@ -85,7 +85,18 @@ export function App() {
     language: SupportedLanguage,
     levelOverride?: AudienceLevel
   ) => {
-    const levelToUse = levelOverride || audienceLevel || 'beginner';
+    const levelToUse = levelOverride || audienceLevel;
+    if (!levelToUse) {
+      // Do NOT auto-describe if the user has not chosen their hardness level yet!
+      setPanes(prev => prev.map(p => p.id === targetPaneId ? {
+        ...p,
+        content: codeContent,
+        fileName,
+        language,
+        isAnalyzing: false,
+      } : p));
+      return;
+    }
 
     setPanes(prev => prev.map(p => p.id === targetPaneId ? { ...p, isAnalyzing: true, error: undefined } : p));
 
@@ -112,6 +123,7 @@ export function App() {
         lineExplanations: result.lineExplanations,
         whyBuiltRationales: result.whyBuiltRationales,
         isAnalyzing: false,
+        isEditingCode: false,
       } : p));
     } catch (err: any) {
       setPanes(prev => prev.map(p => p.id === targetPaneId ? {
@@ -133,8 +145,8 @@ export function App() {
     });
   };
 
-  // Create pane and auto-analyze immediately from text
-  const handleCreatePaneWithCode = (codeText: string, fileName = 'code.py') => {
+  // Create pane from text
+  const handleCreatePaneWithCode = (codeText: string, fileName = 'code.py', levelOverride?: AudienceLevel) => {
     if (!codeText.trim()) return;
 
     const newPaneId = `pane-${Date.now()}`;
@@ -146,14 +158,19 @@ export function App() {
       lineExplanations: [],
       whyBuiltRationales: [],
       queries: [],
-      isAnalyzing: true,
+      isAnalyzing: false,
+      isEditingCode: false,
     };
 
     setPanes(prev => [...prev.slice(0, 2), newPane]); // Up to 3 panes max
-    triggerAutoAnalysis(newPaneId, codeText, fileName, newPane.language);
+
+    const targetLevel = levelOverride || audienceLevel;
+    if (targetLevel) {
+      triggerAutoAnalysis(newPaneId, codeText, fileName, newPane.language, targetLevel);
+    }
   };
 
-  // Add new empty split pane
+  // Add new empty split pane with identical paste/upload interface
   const handleAddNewEmptyPane = () => {
     if (panes.length >= 3) return;
     const newIndex = panes.length + 1;
@@ -162,11 +179,12 @@ export function App() {
       id: newPaneId,
       fileName: `file_${newIndex}.py`,
       language: 'python',
-      content: `# Paste code here for side-by-side comparison`,
+      content: '',
       lineExplanations: [],
       whyBuiltRationales: [],
       queries: [],
       isAnalyzing: false,
+      isEditingCode: true, // starts in paste/input mode!
     };
     setPanes(prev => [...prev, newPane]);
   };
@@ -216,31 +234,36 @@ export function App() {
 
       {/* Level Selection Warning Banner if user hasn't selected yet */}
       {!audienceLevel && panes.length > 0 && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs flex items-center justify-between text-amber-900">
-          <div className="flex items-center gap-2">
-            <span className="font-bold">👉 Please choose your level to tailor explanations:</span>
-            <button
-              onClick={() => handleAudienceLevelChange('beginner')}
-              className="px-2 py-0.5 rounded bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
-            >
-              Beginner
-            </button>
-            <button
-              onClick={() => handleAudienceLevelChange('intermediate')}
-              className="px-2 py-0.5 rounded bg-amber-600 text-white font-semibold hover:bg-amber-700"
-            >
-              Intermediate
-            </button>
-            <button
-              onClick={() => handleAudienceLevelChange('advanced')}
-              className="px-2 py-0.5 rounded bg-purple-600 text-white font-semibold hover:bg-purple-700"
-            >
-              Senior / Architect
-            </button>
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-500/10 border-b-2 border-amber-300 px-4 py-2.5 text-xs shadow-2xs">
+          <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded bg-amber-200 text-amber-900 font-bold text-xs">🎯</span>
+              <div>
+                <span className="font-bold text-amber-950">Select Hardness Level to Generate Explanation:</span>
+                <span className="text-amber-800 ml-2 hidden sm:inline">Choose your experience level to reveal tailored line flow and mental models.</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleAudienceLevelChange('beginner')}
+                className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs transition-colors"
+              >
+                🟢 Beginner (Easy)
+              </button>
+              <button
+                onClick={() => handleAudienceLevelChange('intermediate')}
+                className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-2xs transition-colors"
+              >
+                🟠 Intermediate
+              </button>
+              <button
+                onClick={() => handleAudienceLevelChange('advanced')}
+                className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-2xs transition-colors"
+              >
+                🟣 Senior / Architect
+              </button>
+            </div>
           </div>
-          <span className="text-slate-500 hidden md:inline">
-            You can change this anytime at the top bar.
-          </span>
         </div>
       )}
 
@@ -323,6 +346,15 @@ export function App() {
                 <span className="text-xs text-slate-400">Or try starter demos:</span>
                 <button
                   onClick={() => {
+                    const sampleCode = `while True:\n    num = input("\\nEnter ID number (or type 'exit' to quit): ").strip()\n\n    if num.lower() == "exit":\n        print("Exiting program.")\n        break\n\n    if len(num) == 6 and num.isdigit():\n        if num.startswith("25") or num.startswith("26"):\n            print(f"Accepted: {num}")\n        else:\n            print(f"Rejected: Must start with 25 or 26.")\n    else:\n        print("Rejected: Must be exactly 6 numeric digits.")`;
+                    handleCreatePaneWithCode(sampleCode, 'id_validator.py');
+                  }}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                >
+                  ID Validator Loop
+                </button>
+                <button
+                  onClick={() => {
                     const sampleCode = `int a, b\na = input("Enter first number: ")\nb = input("Enter second number: ")\n\ndef add(a, b):\n    return (a + b)\n\nprint(add(a, b))`;
                     handleCreatePaneWithCode(sampleCode, 'calculator.py');
                   }}
@@ -344,7 +376,7 @@ export function App() {
                     const sampleCode = `with Extractor(logger=self.logger, error_mode=self.error_mode) as ectx:\n    if Path(scan_path).is_dir():\n        for filepath in self.walker([scan_path]):\n            self.file_stack.append(filepath)\n            yield from self.scan_and_or_extract_file(ectx, filepath)\n            self.file_stack.pop()\n    elif Path(scan_path).is_file():\n        self.file_stack.append(scan_path)\n        yield from self.scan_and_or_extract_file(ectx, scan_path)\n        self.file_stack.pop()`;
                     handleCreatePaneWithCode(sampleCode, 'version_scanner.py');
                   }}
-                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition-colors"
                 >
                   Recursive File Walker (Zero-RAM Generator)
                 </button>
@@ -369,11 +401,12 @@ export function App() {
                     pane={pane}
                     onUpdatePane={(updated) => handleUpdatePane(pane.id, updated)}
                     onClosePane={() => handleClosePane(pane.id)}
-                    onAutoAnalyzeFile={(content, fileName, language) => {
-                      triggerAutoAnalysis(pane.id, content, fileName, language);
+                    onAutoAnalyzeFile={(content, fileName, language, levelOverride) => {
+                      triggerAutoAnalysis(pane.id, content, fileName, language, levelOverride);
                     }}
                     canClose={panes.length > 0}
                     audienceLevel={audienceLevel}
+                    onSelectAudienceLevel={handleAudienceLevelChange}
                     activeLine={activeLineNumber}
                     onLineClick={(line) => setActiveLineNumber(line)}
                   />

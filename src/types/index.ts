@@ -65,6 +65,7 @@ export interface FilePaneData {
   whyBuiltRationales: WhyBuiltRationale[];
   queries: BlockQuery[];
   isAnalyzing: boolean;
+  isEditingCode?: boolean;
   error?: string;
 }
 
