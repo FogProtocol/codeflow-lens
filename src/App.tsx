@@ -318,17 +318,35 @@ export function App() {
                 </div>
               </div>
 
-              {/* Quick Preset: User's Exact Arithmetic Example */}
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-center gap-2">
-                <span className="text-xs text-slate-400">Or try your starter code:</span>
+              {/* Quick Preset: Starter Demos with Deep Dive Mental Models */}
+              <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-center gap-2">
+                <span className="text-xs text-slate-400">Or try starter demos:</span>
                 <button
                   onClick={() => {
                     const sampleCode = `int a, b\na = input("Enter first number: ")\nb = input("Enter second number: ")\n\ndef add(a, b):\n    return (a + b)\n\nprint(add(a, b))`;
                     handleCreatePaneWithCode(sampleCode, 'calculator.py');
                   }}
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 underline"
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
                 >
-                  Load Arithmetic Calculator
+                  Arithmetic Calculator
+                </button>
+                <button
+                  onClick={() => {
+                    const sampleCode = `# CVE-Bin-Tool: Safe Subprocess Archive Extractor\nimport asyncio\nfrom pathlib import Path\nfrom cve_bin_tool.extractor import Extractor\n\nSTATIC_INVALID_KEY = "cve-bin-tool-non-free-password"\n\ndef async_wrap(func):\n    """Wraps a CPU/IO blocking function into an async coroutine on a worker thread pool."""\n    async def run(*args, **kwargs):\n        loop = asyncio.get_running_loop()\n        return await loop.run_in_executor(None, func, *args, **kwargs)\n    return run\n\nrpmextract = async_wrap(rpmextract)\n\nasync def unzip_file(file_path: Path, output_dir: Path):\n    """Safely extracts zip archive without hanging headless CI/CD servers."""\n    cmd = ["unzip", "-q", "-P", STATIC_INVALID_KEY, str(file_path), "-d", str(output_dir)]\n    proc = await asyncio.create_subprocess_exec(\n        *cmd,\n        stdout=asyncio.subprocess.PIPE,\n        stderr=asyncio.subprocess.PIPE\n    )\n    stdout, stderr = await proc.communicate()\n    return proc.returncode == 0`;
+                    handleCreatePaneWithCode(sampleCode, 'extractor_worker.py');
+                  }}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                >
+                  Safe Async Extractor (CVE Tooling)
+                </button>
+                <button
+                  onClick={() => {
+                    const sampleCode = `with Extractor(logger=self.logger, error_mode=self.error_mode) as ectx:\n    if Path(scan_path).is_dir():\n        for filepath in self.walker([scan_path]):\n            self.file_stack.append(filepath)\n            yield from self.scan_and_or_extract_file(ectx, filepath)\n            self.file_stack.pop()\n    elif Path(scan_path).is_file():\n        self.file_stack.append(scan_path)\n        yield from self.scan_and_or_extract_file(ectx, scan_path)\n        self.file_stack.pop()`;
+                    handleCreatePaneWithCode(sampleCode, 'version_scanner.py');
+                  }}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                >
+                  Recursive File Walker (Zero-RAM Generator)
                 </button>
               </div>
 

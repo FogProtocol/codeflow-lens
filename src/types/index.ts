@@ -32,17 +32,27 @@ export interface BlockQuery {
   isLoading?: boolean;
 }
 
+export interface DeepDiveInfo {
+  analogy?: string;                // Real-world everyday metaphor (e.g. restaurant buzzer, IKEA box)
+  cleverTrick?: string;            // The clever architectural trick / what bug it avoids
+  misconceptionClarified?: string; // Common doubt resolved (e.g. Does it bypass permissions?)
+  underTheHood?: string;           // Exact runtime/OS mechanics (e.g. memory bounds, shell injection)
+  suggestedQuestions?: string[];   // Quick questions the user can click to ask
+}
+
 export interface LineByLineExplanation {
   id: string;
   lineNumber: number;
   endLineNumber: number;
   codeSnippet: string;
-  explanation: string;         // Plain, direct, raw explanation like handwritten notes
+  explanation: string;             // Plain, direct, raw explanation like handwritten notes
+  deepDive?: DeepDiveInfo;         // Core deep-dive information for beginners and returners
 }
 
 export interface WhyBuiltRationale {
-  topic: string;              // e.g. "Why for-loop instead of while or do-while?"
-  explanation: string;        // In-depth architectural / choice rationale
+  topic: string;                  // e.g. "Why for-loop instead of while or do-while?"
+  explanation: string;            // In-depth architectural / choice rationale
+  analogy?: string;               // Optional real-world analogy for the architectural choice
 }
 
 export interface FilePaneData {
